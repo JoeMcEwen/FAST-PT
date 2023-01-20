@@ -249,16 +249,15 @@ class FASTPT:
             self.X_lpt = scalar_stuff(p_mat_lpt, nu, self.N, self.m, self.eta_m, self.l, self.tau_l)
         if self.sc_do1:
             nu = -2
-            # parameter matrix for 1-loop calculations
+            # parameter matrix 
         
             p_mat1 = p_mat1 = np.array([[0, 0, 0, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [0, 0, 2, 0]])                 
 
-            #p_mat_lpt = np.array([[0, 0, 0, 0], [0, 0, 2, 0], [2, -2, 2, 0], \
-                                  #[1, -1, 1, 0], [1, -1, 3, 0], [0, 0, 4, 0], [2, -2, 0, 1]])
+            
 
             
             self.X_spt1 = scalar_stuff(p_mat1, nu, self.N, self.m, self.eta_m, self.l, self.tau_l)
-            #self.X_lpt = scalar_stuff(p_mat_lpt, nu, self.N, self.m, self.eta_m, self.l, self.tau_l)
+            
         if self.cleft:
             nu = -2
             p_mat = np.array([[0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 4, 0], [1, -1, 1, 0], [1, -1, 3, 0], [-1, 1, 1, 0],
@@ -403,19 +402,18 @@ class FASTPT:
     def sc_ta_1(self, P, P_window=None, C_window=None):
         nu = -2
 
-        # routine for one-loop spt calculations
+        
 
-        # coefficents for one_loop calculation
+        
         sc_one_loop_coef1 = np.array(
             [2 * 17 / 21., 2 * 1 / 2., 2 * 1 / 2., 2 * 4 / 21.])
 
-        # get the roundtrip Fourier power spectrum, i.e. P=IFFT[FFT[P]]
-        # get the matrix for each J_k component
+        
         Ps, mat = self.J_k_scalar(P, self.X_spt1, nu, P_window=P_window, C_window=C_window)
 
         sc_mat1 = np.multiply(sc_one_loop_coef1, np.transpose(mat))
         sc1 = np.sum(sc_mat1, 1)
-        #P13 = P_13_reg(self.k_old, Ps)
+        
         A00E = sc1
         if (self.extrap):
             _, Ps = self.EK.PK_original(Ps)
@@ -510,47 +508,7 @@ class FASTPT:
         #			return P_1loop, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, Ps #original
         return P_1loop, Ps, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, sig3nl  # new,for consistency
 
-    def one_loop_dd_bias_b3nl(self, P, P_window=None, C_window=None):
-        nu = -2
-
-        # routine for one-loop spt calculations
-
-        # coefficents for one_loop calculation
-        one_loop_coef = np.array(
-            [2 * 1219 / 1470., 2 * 671 / 1029., 2 * 32 / 1715., 2 * 1 / 3., 2 * 62 / 35., 2 * 8 / 35., 1 / 3.])
-
-        # get the roundtrip Fourier power spectrum, i.e. P=IFFT[FFT[P]]
-        # get the matrix for each J_k component
-        Ps, mat = self.J_k_scalar(P, self.X_spt, nu, P_window=P_window, C_window=C_window)
-
-       # P22_mat = np.multiply(one_loop_coef, np.transpose(mat))
-       # P22 = np.sum(P22_mat, 1)
-       # P13 = P_13_reg(self.k_old, Ps)
-        #P_1loop = P22 + P13
-
-        sig4 = np.trapz(self.k_old ** 3 * Ps ** 2, x=np.log(self.k_old)) / (2. * pi ** 2)
-        Pd1d2 = 2. * (17. / 21 * mat[0, :] + mat[4, :] + 4. / 21 * mat[1, :])
-        Pd2d2 = 2. * (mat[0, :])
-        Pd1s2 = 2. * (8. / 315 * mat[0, :] + 4. / 15 * mat[4, :] + 254. / 441 * mat[1, :] + 2. / 5 * mat[5,
-                                                                                                     :] + 16. / 245 * mat[
-                                                                                                                      2,
-                                                                                                                      :])
-        Pd2s2 = 2. * (2. / 3 * mat[1, :])
-        Ps2s2 = 2. * (4. / 45 * mat[0, :] + 8. / 63 * mat[1, :] + 8. / 35 * mat[2, :])
-        sig3nl = Y1_reg_NL(self.k_old, Ps)
-
-        if (self.extrap):
-            _, Ps = self.EK.PK_original(Ps)
-            _, P_1loop = self.EK.PK_original(P_1loop)
-            _, Pd1d2 = self.EK.PK_original(Pd1d2)
-            _, Pd2d2 = self.EK.PK_original(Pd2d2)
-            _, Pd1s2 = self.EK.PK_original(Pd1s2)
-            _, Pd2s2 = self.EK.PK_original(Pd2s2)
-            _, Ps2s2 = self.EK.PK_original(Ps2s2)
-            _, sig3nl = self.EK.PK_original(sig3nl)
-
-        #			return P_1loop, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, Ps #original
-       # return P_1loop, Ps, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, sig3nl  # new,for consistency
+    
 
     def one_loop_dd_bias_lpt_NL(self, P, P_window=None, C_window=None):
         nu_arr = -2
