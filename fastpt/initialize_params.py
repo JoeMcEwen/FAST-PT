@@ -111,6 +111,20 @@ def scalar_stuff(p_mat,nu,N,m,eta_m,l, tau_l):
 	return pf,p, g_m, g_n, two_part_l, h_l
 
 def tensor_stuff(p_mat,N,m,eta_m,l, tau_l):
+	"""
+	Outputs the (pf, p, nu1, nu2, g_m, g_n, h_l) coefficients after receiving
+	the (p_mat, N, m, eta_m, l, tau_l) coefficients.
+
+	Referring to eq. 2.22 from arxiv 1609.05978v2, these corresponds to:
+
+	- pf : Scalar prefactor, incorporating the pi^(3/2) / 8
+	- p : Exponent to which k_q is raised, that is 3+nu_1+nu_2+alpha+beta
+	- nu1 : -2-alpha
+	- nu2 : -2-beta
+	- g_m : g_alpha,m (which must then be convolved with g_beta,n)
+	- g_n : g_beta,n (which must then be convolved with g_alpha,m)
+	- h_l : second term in the IFFT, that is g(J_k+1/2, -Q_h-3/2)
+	"""
 
 	alpha=p_mat[:,0]
 	beta=p_mat[:,1]
