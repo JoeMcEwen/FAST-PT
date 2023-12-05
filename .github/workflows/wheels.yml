@@ -1,0 +1,43 @@
+name: Build wheels and sdist and upload to PyPI
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+jobs:
+  build_sdist:
+    name: Build platform-independent wheel and sdist and upload to PyPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+
+          pip install -U numpy setuptools wheel
+          pip install -U -r requirements.txt
+
+      - name: Build wheel
+        run: |
+          pip wheel -w wheels .
+          ls -l wheels
+
+      - name: Build sdist
+        run: |
+          python setup.py sdist
+          cp wheels/fast-pt* dist
+          ls -l dist
+          tar tvfz dist/fast-pt-*.tar.gz
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+            user: jablazek
+            password: ${{ secrets.pypi_password }}
+            verbose: true

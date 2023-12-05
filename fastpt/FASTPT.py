@@ -589,6 +589,10 @@ class FASTPT:
 
     ## eq 12 (line 2); eq 12 (line 3); eq 15 EE; eq 15 BB
 
+    def IA_der(self, P, P_window=None, C_window=None):
+        P_der = (self.k_original**2)*P
+        return P_der
+
     def OV(self, P, P_window=None, C_window=None):
         P, A = self.J_k_tensor(P, self.X_OV, P_window=P_window, C_window=C_window)
         if (self.extrap):
