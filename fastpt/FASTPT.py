@@ -43,19 +43,23 @@ from numpy import exp, log, log10, cos, sin, pi, cosh, sinh, sqrt
 from scipy.special import gamma
 from scipy.signal import fftconvolve
 import scipy.integrate as integrate
+
 from .fastpt_extr import p_window, c_window, pad_left, pad_right
 from .matter_power_spt import P_13_reg, Y1_reg_NL, Y2_reg_NL
 from .initialize_params import scalar_stuff, tensor_stuff
 from .IA_tt import IA_tt
 from .IA_ABD import IA_A, IA_DEE, IA_DBB, P_IA_B
 from .IA_ta import IA_deltaE1, P_IA_deltaE2, IA_0E0E, IA_0B0B
+from .IA_tidal import IA_tidal
+# from .LVDM import LVDM, LVDM_P13like # right now, there are import problems
 from .OV import OV
 from .kPol import kPol
 from .RSD import RSDA, RSDB
 from . import RSD_ItypeII
 from .P_extend import k_extend
 from . import FASTPT_simple as fastpt_simple
-import pdb
+# import pdb
+from .J_table import J_table
 
 ## WHEN DOES THE IMPORT STEP OCCUR? DO WE WANT TO MOVE SOME OF THESE TO THE INITIALIZATION BLOCK TO SAVE TIME ON LIGHT RUNS?
 
@@ -89,6 +93,10 @@ class FASTPT:
             self.pt_simple = fastpt_simple.FASTPT(k, nu, param_mat=param_mat, low_extrap=low_extrap,
                                                   high_extrap=high_extrap, n_pad=n_pad, verbose=verbose)
             return None
+            
+        elif isinstance(to_do, str):
+            to_do = [to_do]
+            # So as to tolerate lonely strings
         # Exit initialization here, since fastpt_simple performs the various checks on the k grid and does extrapolation.
 
         # check for log spacing
@@ -169,6 +177,8 @@ class FASTPT:
         self.IA_tt_do = False
         self.IA_ta_do = False
         self.IA_mix_do = False
+        self.IA_tidal_do = False
+        self.LVDM_do = False
         self.OV_do = False
         self.kPol_do = False
         self.RSD_do = False
@@ -176,53 +186,57 @@ class FASTPT:
         for entry in to_do:  # convert to_do list to instructions for FAST-PT initialization
             if entry == 'one_loop_dd':
                 self.dd_do = True
-                continue
 
-            if entry == 'one_loop_cleft_dd':
+            elif entry == 'one_loop_cleft_dd':
                 self.cleft = True
-                continue
 
             elif entry == 'dd_bias':
                 self.dd_do = True
                 self.dd_bias_do = True
-                continue
+
             elif entry == 'IA_all' or entry == 'IA':
                 self.IA_tt_do = True
                 self.IA_ta_do = True
                 self.IA_mix_do = True
-                continue
+
             elif entry == 'IA_tt':
                 self.IA_tt_do = True
-                continue
+
             elif entry == 'IA_ta':
                 self.IA_ta_do = True
-                continue
+
             elif entry == 'IA_mix':
                 self.IA_mix_do = True
-                continue
+
+            elif entry=="IA_tidal":
+                self.IA_tidal_do=True
+
+            elif entry=="LVDM":
+                self.LVDM_do = True
+
             elif entry == 'OV':
                 self.OV_do = True
-                continue
+
             elif entry == 'kPol':
                 self.kPol_do = True
-                continue
+
             elif entry == 'RSD':
                 self.RSD_do = True
-                continue
+
             elif entry == 'IRres':
                 self.dd_do = True
-                continue
+
             elif entry == 'all' or entry == 'everything':
                 self.dd_do = True
                 self.dd_bias_do = True
                 self.IA_tt_do = True
                 self.IA_ta_do = True
                 self.IA_mix_do = True
+                self.IA_tidal_do = True
                 self.OV_do = True
                 self.kPol_do = True
                 self.RSD_do = True
                 self.cleft = True
-                continue
             else:
                 raise ValueError('FAST-PT does not recognize "' + entry + '" in the to_do list.')
 
@@ -276,6 +290,22 @@ class FASTPT:
             self.X_IA_0E0E = tensor_stuff(p_mat_0E0E, self.N, self.m, self.eta_m, self.l, self.tau_l)
             self.X_IA_0B0B = tensor_stuff(p_mat_0B0B, self.N, self.m, self.eta_m, self.l, self.tau_l)
 
+        if self.IA_tidal_do:
+            p_mat_K = tuple(ki[:, [0, 1, 5, 6, 7, 8, 9]] for ki in IA_tidal())
+            # Extracts the columns corresponding to the
+            # (alpha, beta, J1, J2, Jk, A, B) coefficients
+
+            self.X_tidal = tuple(tensor_stuff(p_mat_Ki, self.N,self.m,
+                self.eta_m, self.l, self.tau_l) for p_mat_Ki in p_mat_K)
+                
+        if self.LVDM_do:
+            p_mat_K = tuple(ki[:, [0, 1, 5, 6, 7, 8, 9]] for ki in LVDM())
+            # Extracts the columns corresponding to the
+            # (alpha, beta, J1, J2, Jk, A, B) coefficients
+
+            self.X_LVDM = tuple(tensor_stuff(p_mat_Ki, self.N,self.m,
+                self.eta_m, self.l, self.tau_l) for p_mat_Ki in p_mat_K)
+
         if self.OV_do:
             # For OV, we can use two different values for
             # nu1=0 and nu2=-2
@@ -304,6 +334,30 @@ class FASTPT:
             tabB, self.B_coeff = RSDB()
             p_mat = tabB[:, [0, 1, 5, 6, 7, 8, 9]]
             self.X_RSDB = tensor_stuff(p_mat, self.N, self.m, self.eta_m, self.l, self.tau_l)
+
+    def run_parameters(self, l_mat, P, P_window=None, C_window=None):
+        """
+        This method receives, in order, a matrix whose columns are the FAST-PT
+        coefficients ordered as (α, β, l₁, l₂, l, A), and the input power
+        spectrum, and then returns the corresponding power spectrum.
+        
+        The k, nu, etc... parameters are those of the current FASTPT object.
+        """
+
+        to_J = lambda matrix: np.vstack([J_table(row) for row in matrix])
+        J = to_J(l_mat)
+        X_mat = tensor_stuff(J[:, [0, 1, 5, 6, 7, 8, 9]],
+                                self.N,
+                                self.m,
+                                self.eta_m,
+                                self.l,
+                                self.tau_l)
+
+        Ps = self.J_k_tensor(P, X_mat, P_window=P_window, C_window=C_window)[0]
+        if (self.extrap):
+            __, Ps = self.EK.PK_original(Ps)
+
+        return Ps
 
     ### Top-level functions to output final quantities ###
     def one_loop_dd(self, P, P_window=None, C_window=None):
@@ -537,6 +591,10 @@ class FASTPT:
         return FQ1_ep,FQ2_ep,FQ5_ep,FQ8_ep,FQs2_ep,FR1_ep,FR2_ep,self.k_old,FR1,FR2
 
     def IA_tt(self, P, P_window=None, C_window=None):
+        """
+        hE^2 and hB^2
+        Returns 2.*P_E, 2.*P_B
+        """
 
         P_E, A = self.J_k_tensor(P, self.X_IA_E, P_window=P_window, C_window=C_window)
         if (self.extrap):
@@ -550,6 +608,9 @@ class FASTPT:
     ## eq 21 EE; eq 21 BB
 
     def IA_mix(self, P, P_window=None, C_window=None):
+        """
+        Returns 2*P_A, 4*P_Btype2, 2*P_DEE, 2*P_DBB
+        """
 
         P_A, A = self.J_k_tensor(P, self.X_IA_A, P_window=P_window, C_window=C_window)
         if (self.extrap):
@@ -570,6 +631,9 @@ class FASTPT:
     ## eq 18; eq 19; eq 27 EE; eq 27 BB
 
     def IA_ta(self, P, P_window=None, C_window=None):
+        """
+        Returns 2.*P_deltaE1, 2.*P_deltaE2, P_0E0E, P_0B0B
+        """
 
         P_deltaE1, A = self.J_k_tensor(P, self.X_IA_deltaE1, P_window=P_window, C_window=C_window)
         if (self.extrap):
@@ -588,6 +652,38 @@ class FASTPT:
         return 2. * P_deltaE1, 2. * P_deltaE2, P_0E0E, P_0B0B
 
     ## eq 12 (line 2); eq 12 (line 3); eq 15 EE; eq 15 BB
+
+    def IA_tidal(self, P, P_window=None, C_window=None):
+        """
+        Returns a list of arrays!
+        """
+
+        P_tidal = list()
+        for Xi in self.X_tidal:
+            P_X = self.J_k_tensor(P, Xi,P_window=P_window, C_window=C_window)[0]
+            if (self.extrap):
+                _, P_X = self.EK.PK_original(P_X)
+            P_tidal.append(P_X)
+
+        return P_tidal
+        
+    def LVDM(self, P, P_window=None, C_window=None):
+        """
+        Returns a list of arrays!
+        """
+        if not self.LVDM_do:
+            raise NameError("First execute FAST-PT with 'LVDM' in the to_do arg.")
+
+        P_LVDM = []
+        for Xi in self.X_LVDM:
+            P_X = self.J_k_tensor(P, Xi,P_window=P_window, C_window=C_window)[0]
+            if (self.extrap):
+                _, P_X = self.EK.PK_original(P_X)
+            P_LVDM.append(P_X)
+
+        P_LVDM.extend(LVDM_P13like(self.k_original, P))
+
+        return P_LVDM
 
     def OV(self, P, P_window=None, C_window=None):
         P, A = self.J_k_tensor(P, self.X_OV, P_window=P_window, C_window=C_window)
@@ -774,6 +870,9 @@ class FASTPT:
         return P_out, A_out
 
     def J_k_tensor(self, P, X, P_window=None, C_window=None):
+        """
+        Basically executes eq. 2.22 from ArXiv 1609.05978v2.
+        """
 
         pf, p, nu1, nu2, g_m, g_n, h_l = X
 
