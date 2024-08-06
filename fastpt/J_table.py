@@ -9,8 +9,11 @@ import sys
 from .Wigner_symbols import three_j, six_j
 
 def J_range(l_a,l_b):
-	# returns J values for l_a, l_b such that
-	# | l_a - l_b | <= J <= l_a + l_b
+	"""
+	Returns J values for l_a, l_b such that
+	| l_a - l_b | <= J <= l_a + l_b
+	"""
+	
 	start=np.absolute(l_a-l_b)
 	end= l_a+l_b
 
@@ -22,6 +25,10 @@ def J_range(l_a,l_b):
 	return J
 
 def coeff_B(l1,l2,l,J1,J2,Jk):
+	"""
+	Builds the B coefficients from (l1, l2, l, J1, J2, Jk) (as defined by
+	eq. 2.16 from arxiv:1609.05978v2)
+	"""
 
 	if ((J1+l2+l)%2==0)&((l1+J2+l)%2==0)&((l1+l2+Jk)%2==0):
 		PF=(-1)**(l+(J1+J2+Jk)/2)  * (2*J1+1)*(2*J2+1)*(2*Jk+1) / pi**3
@@ -35,6 +42,15 @@ def coeff_B(l1,l2,l,J1,J2,Jk):
 	return result
 
 def J_table(params):
+	"""
+	Outputs the (alpha, beta, l1, l2, l, J1, J2, Jk, A, B) coefficients after
+	receiving (alpha, beta, l1, l2,l, A) in input.
+
+	Basically, it adds the J1, J2, Jk and B coefficients to the input ndarray.
+
+	See coeff_B
+	"""
+
 	alpha, beta, l1,l2,l, A=params
 
 

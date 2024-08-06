@@ -1,3 +1,4 @@
 examples/*.pdf
 examples/*.npy
 *.pyc
+.vscode/*
