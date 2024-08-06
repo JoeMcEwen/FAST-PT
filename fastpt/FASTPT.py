@@ -47,6 +47,7 @@ from .fastpt_extr import p_window, c_window, pad_left, pad_right
 from .matter_power_spt import P_13_reg, Y1_reg_NL, Y2_reg_NL
 from .initialize_params import scalar_stuff, tensor_stuff
 from .IA_tt import IA_tt
+from .SC_gI import P_SC_gI2, SC_gI1, SC_gI3, SC_gI4, SC_gI5, SC_gI6
 from .IA_ABD import IA_A, IA_DEE, IA_DBB, P_IA_B
 from .IA_ta import IA_deltaE1, P_IA_deltaE2, IA_0E0E, IA_0B0B
 from .OV import OV
@@ -164,6 +165,8 @@ class FASTPT:
         self.tau_l = omega * self.l
 
         self.dd_do = False
+        self.sc_do1 = False
+        self.sc_do2 = False
         self.cleft = False
         self.dd_bias_do = False
         self.IA_tt_do = False
@@ -177,7 +180,10 @@ class FASTPT:
             if entry == 'one_loop_dd':
                 self.dd_do = True
                 continue
-
+            if entry == 'sc':
+                self.sc_do1 = True
+                self.sc_do2 = True
+                continue
             if entry == 'one_loop_cleft_dd':
                 self.cleft = True
                 continue
@@ -214,6 +220,8 @@ class FASTPT:
                 continue
             elif entry == 'all' or entry == 'everything':
                 self.dd_do = True
+                self.sc_do1 = True
+                self.sc_do2 = True
                 self.dd_bias_do = True
                 self.IA_tt_do = True
                 self.IA_ta_do = True
@@ -230,15 +238,26 @@ class FASTPT:
         if self.dd_do:
             nu = -2
             # parameter matrix for 1-loop calculations
-            p_mat = np.array([[0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 4, 0], [2, -2, 2, 0], \
+            p_mat = p_mat = np.array([[0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 4, 0], [2, -2, 2, 0], \
                               [1, -1, 1, 0], [1, -1, 3, 0], [2, -2, 0, 1]])
+                         
 
             p_mat_lpt = np.array([[0, 0, 0, 0], [0, 0, 2, 0], [2, -2, 2, 0], \
                                   [1, -1, 1, 0], [1, -1, 3, 0], [0, 0, 4, 0], [2, -2, 0, 1]])
 
             self.X_spt = scalar_stuff(p_mat, nu, self.N, self.m, self.eta_m, self.l, self.tau_l)
             self.X_lpt = scalar_stuff(p_mat_lpt, nu, self.N, self.m, self.eta_m, self.l, self.tau_l)
+        if self.sc_do1:
+            nu = -2
+            # parameter matrix 
+        
+            p_mat1 = p_mat1 = np.array([[0, 0, 0, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [0, 0, 2, 0]])                 
 
+            
+
+            
+            self.X_spt1 = scalar_stuff(p_mat1, nu, self.N, self.m, self.eta_m, self.l, self.tau_l)
+            
         if self.cleft:
             nu = -2
             p_mat = np.array([[0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 4, 0], [1, -1, 1, 0], [1, -1, 3, 0], [-1, 1, 1, 0],
@@ -253,6 +272,22 @@ class FASTPT:
             self.X_IA_E = tensor_stuff(p_mat_E, self.N, self.m, self.eta_m, self.l, self.tau_l)
             self.X_IA_B = tensor_stuff(p_mat_B, self.N, self.m, self.eta_m, self.l, self.tau_l)
 
+        if self.sc_do2:
+            sc_tab1 = SC_gI1()
+            sc_tab3 = SC_gI3()
+            sc_tab4 = SC_gI4()
+            sc_tab5 = SC_gI5()
+            sc_tab6 = SC_gI6()
+            sc_mat_1 = sc_tab1[:, [0, 1, 5, 6, 7, 8, 9]]
+            sc_mat_3 = sc_tab3[:, [0, 1, 5, 6, 7, 8, 9]]
+            sc_mat_4 = sc_tab4[:, [0, 1, 5, 6, 7, 8, 9]]
+            sc_mat_5 = sc_tab5[:, [0, 1, 5, 6, 7, 8, 9]]
+            sc_mat_6 = sc_tab6[:, [0, 1, 5, 6, 7, 8, 9]]
+            self.X_SC_1 = tensor_stuff(sc_mat_1, self.N, self.m, self.eta_m, self.l, self.tau_l)   
+            self.X_SC_3 = tensor_stuff(sc_mat_3, self.N, self.m, self.eta_m, self.l, self.tau_l) 
+            self.X_SC_4 = tensor_stuff(sc_mat_4, self.N, self.m, self.eta_m, self.l, self.tau_l)   
+            self.X_SC_5 = tensor_stuff(sc_mat_5, self.N, self.m, self.eta_m, self.l, self.tau_l) 
+            self.X_SC_6 = tensor_stuff(sc_mat_6, self.N, self.m, self.eta_m, self.l, self.tau_l)   
         if self.IA_mix_do:
             IA_A_tab = IA_A()
             IA_DEE_tab = IA_DEE()
@@ -322,7 +357,8 @@ class FASTPT:
         P22_mat = np.multiply(one_loop_coef, np.transpose(mat))
         P22 = np.sum(P22_mat, 1)
         P13 = P_13_reg(self.k_old, Ps)
-        P_1loop = P22 + P13
+        P_1loop = P22 + P13 
+
 
         if (self.dd_bias_do):
             # if dd_bias is in to_do, this function acts like one_loop_dd_bias
@@ -335,6 +371,8 @@ class FASTPT:
             # Uses standard "full initialization" of J terms
             sig4 = np.trapz(self.k_old ** 3 * Ps ** 2, x=np.log(self.k_old)) / (2. * pi ** 2)
             self.sig4 = sig4
+            sig2 = np.trapz(self.k_old**3*Ps,x=np.log(self.k_old))/(2.*pi**2)
+            self.sig2 = sig2
             # sig4 much more accurate when calculated in logk, especially for low-res input.
 
             Pd1d2 = 2. * (17. / 21 * mat[0, :] + mat[4, :] + 4. / 21 * mat[1, :])
@@ -354,14 +392,34 @@ class FASTPT:
                 _, Pd2s2 = self.EK.PK_original(Pd2s2)
                 _, Ps2s2 = self.EK.PK_original(Ps2s2)
 
-            return P_1loop, Ps, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4
+            return P_1loop, Ps, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, sig2
 
         if (self.extrap):
             _, Ps = self.EK.PK_original(Ps)
             _, P_1loop = self.EK.PK_original(P_1loop)
 
         return P_1loop, Ps
+    def sc_ta_1(self, P, P_window=None, C_window=None):
+        nu = -2
 
+        
+
+        
+        sc_one_loop_coef1 = np.array(
+            [2 * 17 / 21., 2 * 1 / 2., 2 * 1 / 2., 2 * 4 / 21.])
+
+        
+        Ps, mat = self.J_k_scalar(P, self.X_spt1, nu, P_window=P_window, C_window=C_window)
+
+        sc_mat1 = np.multiply(sc_one_loop_coef1, np.transpose(mat))
+        sc1 = np.sum(sc_mat1, 1)
+        
+        A00E = sc1
+        if (self.extrap):
+            _, Ps = self.EK.PK_original(Ps)
+            _, A00E = self.EK.PK_original(A00E)
+
+        return A00E, Ps
     def one_loop_dd_bias(self, P, P_window=None, C_window=None):
         nu = -2
 
@@ -449,6 +507,8 @@ class FASTPT:
 
         #			return P_1loop, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, Ps #original
         return P_1loop, Ps, Pd1d2, Pd2d2, Pd1s2, Pd2s2, Ps2s2, sig4, sig3nl  # new,for consistency
+
+    
 
     def one_loop_dd_bias_lpt_NL(self, P, P_window=None, C_window=None):
         nu_arr = -2
@@ -546,6 +606,32 @@ class FASTPT:
         if (self.extrap):
             _, P_B = self.EK.PK_original(P_B)
         return 2. * P_E, 2. * P_B
+    
+    def SC_gI(self, P, P_window=None, C_window=None):
+
+        P_sc1, A = self.J_k_tensor(P, self.X_SC_1, P_window=P_window, C_window=C_window)
+        if (self.extrap):
+            _, P_sc1 = self.EK.PK_original(P_sc1)
+
+        P_sc2 = P_SC_gI2(self.k_original, P)
+        
+        P_sc3, A = self.J_k_tensor(P, self.X_SC_3, P_window=P_window, C_window=C_window)
+        if (self.extrap):
+            _, P_sc3 = self.EK.PK_original(P_sc3)
+        
+        P_sc4, A = self.J_k_tensor(P, self.X_SC_4, P_window=P_window, C_window=C_window)
+        if (self.extrap):
+            _, P_sc4 = self.EK.PK_original(P_sc4)
+
+        P_sc5, A = self.J_k_tensor(P, self.X_SC_5, P_window=P_window, C_window=C_window)
+        if (self.extrap):
+            _, P_sc5 = self.EK.PK_original(P_sc5)
+
+        P_sc6, A = self.J_k_tensor(P, self.X_SC_6, P_window=P_window, C_window=C_window)
+        if (self.extrap):
+            _, P_sc6 = self.EK.PK_original(P_sc6)    
+
+        return 2. * P_sc1, 4 * P_sc2, 2. * P_sc3, 2. * P_sc4, 2. * P_sc5, 2. * P_sc6
 
     ## eq 21 EE; eq 21 BB
 
